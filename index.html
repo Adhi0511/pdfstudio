@@ -1,0 +1,175 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PDF Studio</title><link rel="manifest" href="manifest.json"><link rel="icon" href="icon-192.png"><meta name="theme-color" content="#0e2a2f">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<style>
+:root{--bg:#eef2f3;--card:#fff;--tx:#12262b;--mut:#5f7479;--ac:#0f766e;--hi:#f5b301;--bd:#d7e1e3;--side:#0e2a2f}
+@media(prefers-color-scheme:dark){:root{--bg:#0b1a1e;--card:#122429;--tx:#e6f1f2;--mut:#8aa3a8;--bd:#223b41;--side:#081417;--ac:#14b8a6}}
+*{box-sizing:border-box}body{margin:0;height:100vh;display:flex;font:14px/1.4 "Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--tx)}
+aside{width:210px;background:var(--side);color:#e6f1f2;padding:18px 12px;display:flex;flex-direction:column;gap:4px}
+aside h1{font:700 20px Georgia,serif;margin:0 0 16px 8px;letter-spacing:.3px}aside h1 i{color:var(--hi)}
+aside button{all:unset;cursor:pointer;padding:10px 12px;border-radius:9px;color:#b9d0d3}
+aside button:hover{background:#ffffff14}aside button.on{background:var(--ac);color:#fff}
+aside small{margin-top:auto;color:#7fa0a5;font-size:11px;padding:0 8px}
+main{flex:1;display:flex;flex-direction:column;min-width:0}
+header{display:flex;gap:8px;align-items:center;padding:11px 18px;background:var(--card);border-bottom:1px solid var(--bd)}
+#fn{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+button,select,input{font:inherit;color:inherit}
+.b{border:1px solid var(--bd);background:var(--card);padding:7px 12px;border-radius:8px;cursor:pointer}
+.b:hover{border-color:var(--ac)}.b.p{background:var(--ac);color:#fff;border-color:var(--ac)}
+input[type=text],input[type=number],select{border:1px solid var(--bd);background:var(--card);border-radius:8px;padding:6px 8px}
+section{display:none;flex:1;overflow:auto;padding:18px}section.on{display:block}
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+#grid>p{color:var(--mut);grid-column:1/-1;text-align:center;padding:80px 0;border:2px dashed var(--bd);border-radius:14px}
+.pg{background:var(--card);border:2px solid var(--bd);border-radius:10px;padding:8px;cursor:pointer;text-align:center}
+.pg.sel{border-color:var(--ac);box-shadow:0 0 0 3px #14b8a640}.pg canvas{max-width:100%;box-shadow:0 2px 8px #0003}
+.bar{display:flex;justify-content:space-between;margin-top:6px}.bar button{border:0;background:none;cursor:pointer}
+.tb{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:12px}
+#stage{position:relative;width:max-content;margin:auto;box-shadow:0 6px 30px #0005}#stage canvas{display:block}
+#ov{position:absolute;inset:0;cursor:crosshair;touch-action:none}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:8px}
+.card h3{margin:0;font:700 16px Georgia,serif}.card p{margin:0;color:var(--mut);font-size:12px}
+#sheet{background:#fff;color:#000;max-width:794px;min-height:1000px;margin:auto;padding:60px 70px;box-shadow:0 6px 30px #0005;outline:0;font:16px Calibri,Arial,sans-serif}
+#sheet img{max-width:100%}#sheet td{padding:6px;border:1px solid #888}
+#toast{position:fixed;bottom:20px;left:50%;transform:translate(-50%,90px);background:#111;color:#fff;padding:10px 18px;border-radius:20px;transition:.3s;z-index:9}#toast.on{transform:translate(-50%,0)}
+@media print{body *{visibility:hidden}#sheet,#sheet *{visibility:visible}#sheet{position:absolute;left:0;top:0;box-shadow:none;max-width:none}}
+@media(max-width:700px){aside{width:58px}aside h1,aside small{display:none}aside button{font-size:0}aside button::first-letter{font-size:18px}}
+</style></head><body>
+<aside><h1>PDF<i>Studio</i></h1>
+<button class="on" data-v="organize">🗂 Organize</button><button data-v="edit">✏️ Edit page</button><button data-v="tools">🧰 Tools</button><button data-v="word">📝 Word editor</button>
+<small>100% offline. Your files never leave this device.</small></aside>
+<main><header><span id="fn">No file open</span>
+<button class="b" onclick="addB(true)">Open</button><button class="b" onclick="addB(false)">Merge / add</button><button class="b p" onclick="if(need())dl(bytes,fname)">Download PDF</button></header>
+
+<section id="organize" class="on">
+<div class="tb"><input type="text" id="rng" placeholder="Pages e.g. 1-3,5" style="width:150px"><button class="b" onclick="ext()">Split / extract</button><button class="b" onclick="delSel()">Delete selected</button><span style="color:var(--mut)">Click pages to select · ◀ ▶ reorder · ↻ rotate · 🗑 delete</span></div>
+<div id="grid"><p>Drop PDFs or images here, or click Open.<br>Images are turned into PDF pages. Merge more files with “Merge / add”.</p></div></section>
+
+<section id="edit">
+<div class="tb"><button class="b" onclick="go(-1)">◀</button><span id="pn">–</span><button class="b" onclick="go(1)">▶</button>
+<button class="b t p" data-t="text">🔤 Text</button><button class="b t" data-t="draw">✍ Draw / sign</button><button class="b t" data-t="hl">🖍 Highlight</button><button class="b t" data-t="white">⬜ Whiteout</button><button class="b t" data-t="img">🖼 Image</button>
+<input type="color" id="col" value="#d12b2b"><input type="number" id="fsz" value="16" min="6" max="96" style="width:64px" title="Text size"><button class="b" onclick="undo()">↩ Undo</button><button class="b p" onclick="applyAnn()">Apply to PDF</button></div>
+<div id="stage"><canvas id="base"></canvas><canvas id="ov"></canvas></div></section>
+
+<section id="tools"><div class="cards">
+<div class="card"><h3>Watermark</h3><p>Diagonal text on every page.</p><input type="text" id="wmt" placeholder="CONFIDENTIAL"><button class="b p" onclick="wm()">Add watermark</button></div>
+<div class="card"><h3>Page numbers</h3><p>“1 / 10” at the bottom of each page.</p><button class="b p" onclick="nums()">Add numbers</button></div>
+<div class="card"><h3>Compress</h3><p>Rebuilds pages as images. Smaller file, text no longer selectable.</p><select id="cq"><option value=".6">Smallest</option><option value=".9" selected>Balanced</option><option value="1.2">Sharper</option></select><button class="b p" onclick="compress()">Compress &amp; download</button></div>
+<div class="card"><h3>PDF → images</h3><p>Downloads every page as a PNG.</p><button class="b p" onclick="toImgs()">Export PNGs</button></div>
+<div class="card"><h3>PDF → Word editor</h3><p>Extracts the text into the Word editor. Layout is approximate; scanned PDFs have no text.</p><button class="b p" onclick="toWord()">Open in editor</button></div>
+<div class="card"><h3>Rotate all</h3><p>Turn every page 90° clockwise.</p><button class="b p" onclick="rotAll()">Rotate</button></div>
+</div></section>
+
+<section id="word">
+<div class="tb" id="wtb">
+<select onchange="ex('fontName',this.value)"><option>Calibri</option><option>Arial</option><option>Georgia</option><option>Times New Roman</option><option>Courier New</option><option>Nirmala UI</option></select>
+<select onchange="ex('fontSize',this.value)"><option value="2">10</option><option value="3" selected>12</option><option value="4">14</option><option value="5">18</option><option value="6">24</option><option value="7">32</option></select>
+<select onchange="ex('formatBlock',this.value)"><option value="p">Paragraph</option><option value="h1">Heading 1</option><option value="h2">Heading 2</option><option value="h3">Heading 3</option></select>
+<button class="b" data-c="bold"><b>B</b></button><button class="b" data-c="italic"><i>I</i></button><button class="b" data-c="underline"><u>U</u></button><button class="b" data-c="strikeThrough"><s>S</s></button>
+<input type="color" value="#000000" oninput="ex('foreColor',this.value)" title="Text colour"><input type="color" value="#ffe600" oninput="ex('hiliteColor',this.value)" title="Highlight">
+<button class="b" data-c="justifyLeft">⬅</button><button class="b" data-c="justifyCenter">↔</button><button class="b" data-c="justifyRight">➡</button><button class="b" data-c="justifyFull">☰</button>
+<button class="b" data-c="insertUnorderedList">• List</button><button class="b" data-c="insertOrderedList">1. List</button><button class="b" data-c="undo">↩</button><button class="b" data-c="redo">↪</button>
+<button class="b" onclick="tbl()">▦ Table</button><button class="b" onclick="pic()">🖼 Image</button>
+<button class="b" onclick="impW()">Import .docx/.txt</button><button class="b" onclick="dl(wdoc(),'document.doc','application/msword')">Save .doc</button><button class="b p" onclick="print()">Save as PDF</button></div>
+<div id="sheet" contenteditable="true" spellcheck="true"><h1>Untitled document</h1><p>Start typing…</p></div></section>
+</main><div id="toast"></div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const {PDFDocument,rgb,StandardFonts,degrees,LineCapStyle}=PDFLib,$=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+let bytes=null,pdf=null,fname='document.pdf',sel=new Set(),ann={},cur=0,tool='text',tmp=null,vw=1,vh=1;const S=1.4;
+const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),3000)};
+const run=f=>async(...a)=>{try{await f(...a)}catch(e){console.error(e);toast('⚠ '+e.message)}};
+const dl=(d,fn,type='application/pdf')=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([d],{type}));a.download=fn;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),9e3)};
+const pick=(acc,multi)=>new Promise(r=>{const i=document.createElement('input');i.type='file';i.accept=acc;i.multiple=!!multi;i.onchange=()=>r([...i.files]);i.click()});
+const need=()=>bytes?true:(toast('Open a PDF first'),false);
+const base=$('#base'),ov=$('#ov'),sheet=$('#sheet'),esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const hex=c=>rgb(...[1,3,5].map(i=>parseInt(c.substr(i,2),16)/255)),base0=()=>fname.replace(/\.pdf$/i,'');
+const parse=(s,n)=>{const o=[];s.split(',').forEach(x=>{const[a,b]=x.split('-').map(v=>parseInt(v));if(a)for(let k=a;k<=(b||a);k++)if(k<=n)o.push(k-1)});return o};
+
+$$('aside button').forEach(b=>b.onclick=()=>{$$('aside button').forEach(x=>x.classList.toggle('on',x==b));$$('section').forEach(s=>s.classList.toggle('on',s.id==b.dataset.v));if(b.dataset.v=='edit')showPage()});
+document.ondragover=e=>e.preventDefault();document.ondrop=e=>{e.preventDefault();const f=[...e.dataTransfer.files];if(f.length)run(add)(f,!bytes)};
+if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js');
+
+async function add(files,replace){
+ const d=replace||!bytes?await PDFDocument.create():await PDFDocument.load(bytes);
+ for(const f of files){const b=new Uint8Array(await f.arrayBuffer());
+  if(/pdf/i.test(f.type)||/\.pdf$/i.test(f.name)){const s=await PDFDocument.load(b,{ignoreEncryption:true});(await d.copyPages(s,s.getPageIndices())).forEach(p=>d.addPage(p))}
+  else{const im=/png/i.test(f.type)?await d.embedPng(b):await d.embedJpg(b);d.addPage([im.width,im.height]).drawImage(im,{x:0,y:0,width:im.width,height:im.height})}}
+ if(replace||!bytes)fname=files[0].name.replace(/\.\w+$/,'')+'.pdf';
+ await setBytes(await d.save())}
+const addB=run(async r=>{const f=await pick('.pdf,image/png,image/jpeg',1);if(f.length)await add(f,r)});
+async function setBytes(b){bytes=b;ann={};sel.clear();pdf=await pdfjsLib.getDocument({data:b.slice()}).promise;if(cur>=pdf.numPages)cur=0;$('#fn').textContent=fname+' · '+pdf.numPages+' pages';grid();if($('#edit').classList.contains('on'))showPage()}
+
+function grid(){const g=$('#grid');g.innerHTML='';for(let i=0;i<pdf.numPages;i++){const d=document.createElement('div');d.className='pg'+(sel.has(i)?' sel':'');
+ d.innerHTML=`<canvas></canvas><div class="bar"><b>${i+1}</b><button data-a="l">◀</button><button data-a="r">↻</button><button data-a="d">🗑</button><button data-a="n">▶</button></div>`;
+ d.onclick=e=>{const a=e.target.dataset.a;if(a)return act(a,i);sel.has(i)?sel.delete(i):sel.add(i);d.classList.toggle('sel')};g.append(d);thumb(i,d.firstChild)}}
+async function thumb(i,c){const p=await pdf.getPage(i+1),v=p.getViewport({scale:.35});c.width=v.width;c.height=v.height;await p.render({canvasContext:c.getContext('2d'),viewport:v}).promise}
+const act=run(async(a,i)=>{const d=await PDFDocument.load(bytes);
+ if(a=='r'){const p=d.getPage(i);p.setRotation(degrees((p.getRotation().angle+90)%360))}
+ else if(a=='d'){if(d.getPageCount()<2)return toast('A PDF needs at least one page');d.removePage(i)}
+ else{const j=a=='l'?i-1:i+1;if(j<0||j>=d.getPageCount())return;const[p]=await d.copyPages(d,[i]);d.removePage(i);d.insertPage(j,p)}
+ await setBytes(await d.save())});
+const ext=run(async()=>{if(!need())return;const r=$('#rng').value.trim(),idx=r?parse(r,pdf.numPages):[...sel].sort((a,b)=>a-b);if(!idx.length)return toast('Select pages or type a range like 1-3,5');
+ const d=await PDFDocument.load(bytes),o=await PDFDocument.create();(await o.copyPages(d,idx)).forEach(p=>o.addPage(p));dl(await o.save(),base0()+'-extract.pdf')});
+const delSel=run(async()=>{if(!need())return;const d=await PDFDocument.load(bytes);if(!sel.size||sel.size>=d.getPageCount())return toast('Select some (not all) pages first');[...sel].sort((a,b)=>b-a).forEach(i=>d.removePage(i));await setBytes(await d.save())});
+const rotAll=run(async()=>{if(!need())return;const d=await PDFDocument.load(bytes);d.getPages().forEach(p=>p.setRotation(degrees((p.getRotation().angle+90)%360)));await setBytes(await d.save())});
+
+/* ---- page editor ---- */
+async function showPage(){if(!pdf)return;const p=await pdf.getPage(cur+1),v=p.getViewport({scale:S});vw=base.width=ov.width=v.width;vh=base.height=ov.height=v.height;
+ await p.render({canvasContext:base.getContext('2d'),viewport:v}).promise;$('#pn').textContent=(cur+1)+' / '+pdf.numPages;draw()}
+const go=d=>{if(pdf){cur=Math.max(0,Math.min(pdf.numPages-1,cur+d));showPage()}};
+$$('.t').forEach(b=>b.onclick=()=>{tool=b.dataset.t;$$('.t').forEach(x=>x.classList.toggle('p',x==b))});
+const pt=e=>{const r=ov.getBoundingClientRect();return[(e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height]};
+ov.onpointerdown=e=>{if(!pdf)return;const[x,y]=pt(e),a=ann[cur]=ann[cur]||[],c=$('#col').value;
+ if(tool=='text'){const t=prompt('Text to add:');if(t)a.push({t:'text',x,y,txt:t,c,s:+$('#fsz').value||16});return draw()}
+ if(tool=='img')return run(async()=>{const[f]=await pick('image/png,image/jpeg');if(!f)return;const data=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(f)}),im=new Image();im.src=data;await im.decode();
+  const w=.25;a.push({t:'img',x,y,w,h:w*(im.height/im.width)*(vw/vh),data,im});draw()})();
+ tmp=tool=='draw'?{t:'draw',pts:[[x,y]],c,w:3}:{t:'rect',x,y,x0:x,y0:y,w:0,h:0,c:tool=='white'?'#ffffff':'#ffe600',al:tool=='hl'?.4:1};a.push(tmp);ov.setPointerCapture(e.pointerId)};
+ov.onpointermove=e=>{if(!tmp)return;const[x,y]=pt(e);if(tmp.t=='draw')tmp.pts.push([x,y]);else{tmp.x=Math.min(x,tmp.x0);tmp.y=Math.min(y,tmp.y0);tmp.w=Math.abs(x-tmp.x0);tmp.h=Math.abs(y-tmp.y0)}draw()};
+ov.onpointerup=()=>tmp=null;
+const undo=()=>{(ann[cur]||[]).pop();draw()};
+function draw(){const c=ov.getContext('2d');c.clearRect(0,0,vw,vh);(ann[cur]||[]).forEach(a=>{c.globalAlpha=a.al||1;c.fillStyle=c.strokeStyle=a.c;
+ if(a.t=='text'){c.font=`${a.s*S}px Helvetica,Arial,sans-serif`;c.textBaseline='top';c.fillText(a.txt,a.x*vw,a.y*vh)}
+ else if(a.t=='rect')c.fillRect(a.x*vw,a.y*vh,a.w*vw,a.h*vh);
+ else if(a.t=='img')c.drawImage(a.im,a.x*vw,a.y*vh,a.w*vw,a.h*vh);
+ else{c.lineWidth=a.w;c.lineCap='round';c.beginPath();a.pts.forEach(([x,y],i)=>i?c.lineTo(x*vw,y*vh):c.moveTo(x*vw,y*vh));c.stroke()}});c.globalAlpha=1}
+const applyAnn=run(async()=>{if(!need())return;const d=await PDFDocument.load(bytes),f=await d.embedFont(StandardFonts.Helvetica);let n=0;
+ for(const k in ann){if(!ann[k].length)continue;const p=d.getPage(+k);if(p.getRotation().angle)throw Error('Page '+(+k+1)+' is rotated. Apply edits before rotating.');const{width:W,height:H}=p.getSize();
+ for(const a of ann[k]){n++;
+  if(a.t=='text'){if(/[^\x00-\xFF]/.test(a.txt)){const z=4,cv=document.createElement('canvas'),x=cv.getContext('2d');x.font=`${a.s*z}px sans-serif`;cv.width=Math.ceil(x.measureText(a.txt).width)+4;cv.height=a.s*z*1.4;
+    x.font=`${a.s*z}px sans-serif`;x.fillStyle=a.c;x.textBaseline='top';x.fillText(a.txt,0,0);const im=await d.embedPng(cv.toDataURL());p.drawImage(im,{x:a.x*W,y:H-a.y*H-cv.height/z,width:cv.width/z,height:cv.height/z})}
+   else p.drawText(a.txt,{x:a.x*W,y:H-a.y*H-a.s*.8,size:a.s,font:f,color:hex(a.c)})}
+  else if(a.t=='rect')p.drawRectangle({x:a.x*W,y:H-(a.y+a.h)*H,width:a.w*W,height:a.h*H,color:hex(a.c),opacity:a.al,borderWidth:0});
+  else if(a.t=='img'){const im=a.data.startsWith('data:image/png')?await d.embedPng(a.data):await d.embedJpg(a.data);p.drawImage(im,{x:a.x*W,y:H-(a.y+a.h)*H,width:a.w*W,height:a.h*H})}
+  else for(let i=1;i<a.pts.length;i++)p.drawLine({start:{x:a.pts[i-1][0]*W,y:H-a.pts[i-1][1]*H},end:{x:a.pts[i][0]*W,y:H-a.pts[i][1]*H},thickness:a.w/S,color:hex(a.c),lineCap:LineCapStyle.Round})}}
+ if(!n)return toast('Nothing to apply yet');await setBytes(await d.save());toast('Edits saved into the PDF')});
+
+/* ---- tools ---- */
+const wm=run(async()=>{if(!need())return;const t=$('#wmt').value||'CONFIDENTIAL',d=await PDFDocument.load(bytes),f=await d.embedFont(StandardFonts.HelveticaBold);
+ d.getPages().forEach(p=>{const{width:W,height:H}=p.getSize(),s=Math.min(90,W*1.1/t.length),w=f.widthOfTextAtSize(t,s),k=Math.SQRT1_2;
+  p.drawText(t,{x:W/2-w/2*k,y:H/2-w/2*k,size:s,font:f,color:rgb(.5,.5,.5),opacity:.3,rotate:degrees(45)})});await setBytes(await d.save())});
+const nums=run(async()=>{if(!need())return;const d=await PDFDocument.load(bytes),f=await d.embedFont(StandardFonts.Helvetica),n=d.getPageCount();
+ d.getPages().forEach((p,i)=>{const s=`${i+1} / ${n}`,w=f.widthOfTextAtSize(s,10);p.drawText(s,{x:(p.getWidth()-w)/2,y:18,size:10,font:f,color:rgb(.3,.3,.3)})});await setBytes(await d.save())});
+const compress=run(async()=>{if(!need())return;const q=+$('#cq').value,d=await PDFDocument.create();toast('Compressing…');
+ for(let i=1;i<=pdf.numPages;i++){const p=await pdf.getPage(i),v1=p.getViewport({scale:1}),v=p.getViewport({scale:q*1.6}),c=document.createElement('canvas');c.width=v.width;c.height=v.height;
+  await p.render({canvasContext:c.getContext('2d'),viewport:v}).promise;const im=await d.embedJpg(c.toDataURL('image/jpeg',.6));d.addPage([v1.width,v1.height]).drawImage(im,{x:0,y:0,width:v1.width,height:v1.height})}
+ const o=await d.save();dl(o,base0()+'-compressed.pdf');toast(`Size: ${(bytes.length/1024)|0} KB → ${(o.length/1024)|0} KB`)});
+const toImgs=run(async()=>{if(!need())return;for(let i=1;i<=pdf.numPages;i++){const p=await pdf.getPage(i),v=p.getViewport({scale:2}),c=document.createElement('canvas');c.width=v.width;c.height=v.height;
+ await p.render({canvasContext:c.getContext('2d'),viewport:v}).promise;await new Promise(r=>c.toBlob(b=>{dl(b,`${base0()}-page${i}.png`,'image/png');r()}));await new Promise(r=>setTimeout(r,300))}});
+const toWord=run(async()=>{if(!need())return;let h='';for(let i=1;i<=pdf.numPages;i++){const t=await(await pdf.getPage(i)).getTextContent();let l='';
+ t.items.forEach(s=>{l+=s.str;if(s.hasEOL){if(l.trim())h+=`<p>${esc(l)}</p>`;l=''}});if(l.trim())h+=`<p>${esc(l)}</p>`;if(i<pdf.numPages)h+='<hr>'}
+ if(!h.replace(/<hr>/g,''))return toast('No text found. This PDF may be scanned images.');sheet.innerHTML=h;$('[data-v=word]').click()});
+
+/* ---- word editor ---- */
+const ex=(c,v)=>{sheet.focus();document.execCommand(c,false,v||null)};
+$('#wtb').onmousedown=e=>{if(e.target.closest('button'))e.preventDefault()};$('#wtb').onclick=e=>{const b=e.target.closest('[data-c]');if(b)ex(b.dataset.c)};
+const tbl=()=>ex('insertHTML','<table style="border-collapse:collapse;width:100%">'+'<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>'.repeat(3)+'</table><p></p>');
+const pic=run(async()=>{const[f]=await pick('image/*');if(!f)return;const fr=new FileReader();fr.onload=()=>ex('insertImage',fr.result);fr.readAsDataURL(f)});
+const impW=run(async()=>{const[f]=await pick('.docx,.html,.htm,.txt');if(!f)return;
+ if(/\.docx$/i.test(f.name))sheet.innerHTML=(await mammoth.convertToHtml({arrayBuffer:await f.arrayBuffer()})).value;
+ else{const t=await f.text();sheet.innerHTML=/\.html?$/i.test(f.name)?t:t.split('\n').map(l=>`<p>${esc(l)||'<br>'}</p>`).join('')}});
+const wdoc=()=>'<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"></head><body>'+sheet.innerHTML+'</body></html>';
+</script></body></html>
